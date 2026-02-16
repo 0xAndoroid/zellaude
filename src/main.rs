@@ -1,4 +1,5 @@
 mod event_handler;
+mod installer;
 mod render;
 mod state;
 mod tab_pane_map;
@@ -135,18 +136,23 @@ impl ZellijPlugin for State {
                         self.config_loaded = true;
                         true
                     }
+                    Some("install_hooks") => {
+                        self.hooks_installed = true;
+                        false
+                    }
                     _ => false,
                 }
             }
             Event::Timer(_) => {
-                self.cleanup_stale_sessions();
-                self.cleanup_expired_flashes();
-                if self.has_active_flashes() {
+                let stale_changed = self.cleanup_stale_sessions();
+                let flash_changed = self.cleanup_expired_flashes();
+                let has_flashes = self.has_active_flashes();
+                if has_flashes {
                     set_timeout(FLASH_TICK);
                 } else {
                     set_timeout(TIMER_INTERVAL);
                 }
-                true
+                has_flashes || stale_changed || flash_changed || self.has_elapsed_display()
             }
             Event::PermissionRequestResult(_) => {
                 // Permissions granted — ask existing instances for their state
@@ -155,6 +161,10 @@ impl ZellijPlugin for State {
                 // because it ran before permissions were granted)
                 if !self.config_loaded {
                     self.load_config();
+                }
+                // Auto-install hook script and register Claude Code hooks
+                if !self.hooks_installed {
+                    installer::run_install();
                 }
                 false
             }
@@ -175,9 +185,6 @@ impl ZellijPlugin for State {
                     Err(_) => return false,
                 };
                 event_handler::handle_hook_event(self, payload);
-                if self.has_active_flashes() {
-                    set_timeout(FLASH_TICK);
-                }
                 true
             }
             "zellaude:focus" => {
@@ -248,18 +255,21 @@ impl State {
             .retain(|pane_id, _| self.pane_to_tab.contains_key(pane_id));
     }
 
-    fn cleanup_stale_sessions(&mut self) {
+    fn cleanup_stale_sessions(&mut self) -> bool {
         let now = unix_now();
+        let mut changed = false;
         for session in self.sessions.values_mut() {
             match session.activity {
                 state::Activity::Done | state::Activity::AgentDone => {
                     if now.saturating_sub(session.last_event_ts) >= DONE_TIMEOUT {
                         session.activity = state::Activity::Idle;
+                        changed = true;
                     }
                 }
                 _ => {}
             }
         }
+        changed
     }
 
     fn clear_flashes_on_tab(&mut self, tab_idx: usize) {
@@ -279,9 +289,22 @@ impl State {
         self.flash_deadlines.values().any(|&deadline| now < deadline)
     }
 
-    fn cleanup_expired_flashes(&mut self) {
+    fn cleanup_expired_flashes(&mut self) -> bool {
+        let before = self.flash_deadlines.len();
         let now = unix_now_ms();
         self.flash_deadlines.retain(|_, deadline| now < *deadline);
+        self.flash_deadlines.len() != before
+    }
+
+    fn has_elapsed_display(&self) -> bool {
+        if !self.settings.elapsed_time {
+            return false;
+        }
+        let now = unix_now();
+        self.sessions.values().any(|s| {
+            !matches!(s.activity, state::Activity::Idle)
+                && now.saturating_sub(s.last_event_ts) >= DONE_TIMEOUT
+        })
     }
 
     fn request_sync(&self) {

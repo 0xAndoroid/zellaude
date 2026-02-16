@@ -45,9 +45,14 @@ Click the **Zellaude** prefix on the left side of the bar to open the settings m
 
 ## Install
 
+### Prerequisites
+
+- [Zellij](https://zellij.dev)
+- [jq](https://jqlang.github.io/jq/) — used by the hook script at runtime
+
 ### Quick install
 
-Add the plugin directly to your Zellij layout — no build step required:
+Add the plugin to your Zellij layout — that's it:
 
 ```kdl
 default_tab_template {
@@ -58,16 +63,11 @@ default_tab_template {
 }
 ```
 
-Then register the Claude Code hooks (requires [jq](https://jqlang.github.io/jq/)):
-
-```bash
-git clone https://github.com/ishefi/zellaude.git /tmp/zellaude
-/tmp/zellaude/scripts/install-hooks.sh
-```
+On first load, the plugin automatically installs the hook script and registers it with Claude Code. No cloning, no install scripts.
 
 ### Build from source
 
-Prerequisites: [Rust](https://rustup.rs), [jq](https://jqlang.github.io/jq/), [Zellij](https://zellij.dev)
+Prerequisites: [Rust](https://rustup.rs) (in addition to the above)
 
 ```bash
 git clone https://github.com/ishefi/zellaude.git
@@ -75,7 +75,7 @@ cd zellaude
 ./install.sh
 ```
 
-This builds the WASM plugin, copies it to `~/.config/zellij/plugins/`, and registers Claude Code hooks.
+This builds the WASM plugin and copies it to `~/.config/zellij/plugins/`. Hook registration happens automatically when the plugin loads.
 
 Then add the plugin to your Zellij layout (replaces the default tab bar):
 
@@ -114,12 +114,14 @@ Without it, notifications still appear via osascript but clicking them won't foc
 
 Two components:
 
-1. **WASM plugin** — runs inside Zellij, receives events, maintains state in memory, renders the status bar, sends desktop notifications
+1. **WASM plugin** — runs inside Zellij, receives events, maintains state in memory, renders the status bar, sends desktop notifications. On first load, writes the hook script to `~/.config/zellij/plugins/zellaude-hook.sh` and registers it in `~/.claude/settings.json`.
 2. **Hook script** — a thin bash bridge that forwards Claude Code hook events to the plugin via `zellij pipe`
 
 ```
 Claude Code hook → zellaude-hook.sh → zellij pipe → plugin → render
 ```
+
+The hook script and registration are version-tagged and updated automatically when the plugin version changes.
 
 All state lives in WASM memory. No temp files, no race conditions. Multiple plugin instances (one per tab) sync state automatically via inter-plugin messaging. Sessions are cleaned up automatically when tabs are closed.
 

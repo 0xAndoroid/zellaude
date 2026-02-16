@@ -159,4 +159,5 @@ pub struct State {
     pub prefix_click_region: Option<(usize, usize)>,
     pub menu_click_regions: Vec<MenuClickRegion>,
     pub config_loaded: bool,
+    pub hooks_installed: bool,
 }
