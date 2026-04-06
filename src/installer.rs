@@ -18,6 +18,10 @@ fn hook_script_content() -> String {
 const INSTALL_TEMPLATE: &str = r##"set -e
 HOOK_PATH="$HOME/.config/zellij/plugins/zellaude-hook.sh"
 SETTINGS="$HOME/.claude/settings.json"
+# Resolve symlink so mv doesn't replace the link with a regular file
+if [ -L "$SETTINGS" ]; then
+  SETTINGS="$(readlink -f "$SETTINGS")"
+fi
 
 # Check if already current
 if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null; then
