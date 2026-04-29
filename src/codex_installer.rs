@@ -22,6 +22,13 @@ if ! command -v codex >/dev/null 2>&1 && [ ! -d "$CONFIG_DIR" ]; then
   exit 0
 fi
 
+# Resolve symlink so `mv $tmp $CONFIG_FILE` rewrites the link target instead
+# of replacing a user's symlink with a regular file (e.g. dotfile setups
+# where ~/.codex/config.toml -> ~/.dotfiles/codex/config.toml).
+if [ -L "$CONFIG_FILE" ]; then
+  CONFIG_FILE="$(readlink -f "$CONFIG_FILE")"
+fi
+
 # Idempotency: if the hook script and the managed block are both at the
 # current version, do nothing.
 if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null \
