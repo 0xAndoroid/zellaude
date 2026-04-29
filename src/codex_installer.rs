@@ -7,12 +7,17 @@ fn hook_script_content() -> String {
     tag_script(include_str!("../scripts/codex-hook.sh"))
 }
 
+fn session_event_script_content() -> String {
+    tag_script(include_str!("../scripts/codex-session-event.sh"))
+}
+
 const HOOKS_BLOCK_BEGIN: &str = "# BEGIN ZELLAUDE HOOKS";
 const HOOKS_BLOCK_END: &str = "# END ZELLAUDE HOOKS";
 
 const INSTALL_TEMPLATE: &str = r##"set -e
 HOOK_PATH="$HOME/.config/zellij/plugins/codex-hook.sh"
 HOOK_CMD="$HOME/.config/zellij/plugins/codex-hook.sh"
+EVENT_PATH="$HOME/.config/zellij/plugins/codex-session-event.sh"
 CONFIG_DIR="$HOME/.codex"
 CONFIG_FILE="$CONFIG_DIR/config.toml"
 
@@ -29,9 +34,10 @@ if [ -L "$CONFIG_FILE" ]; then
   CONFIG_FILE="$(readlink -f "$CONFIG_FILE")"
 fi
 
-# Idempotency: if the hook script and the managed block are both at the
+# Idempotency: if both helper scripts and the managed block are at the
 # current version, do nothing.
 if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null \
+   && grep -qF '__VERSION_TAG__' "$EVENT_PATH" 2>/dev/null \
    && [ -f "$CONFIG_FILE" ] \
    && grep -qF '__BLOCK_BEGIN__' "$CONFIG_FILE" 2>/dev/null \
    && grep -qF "$HOOK_CMD" "$CONFIG_FILE" 2>/dev/null; then
@@ -46,6 +52,12 @@ cat > "$HOOK_PATH" << 'CODEX_HOOK_EOF'
 __HOOK_SCRIPT__
 CODEX_HOOK_EOF
 chmod +x "$HOOK_PATH"
+
+# Write session-event helper (called from user's cdx/codex shell wrapper)
+cat > "$EVENT_PATH" << 'CODEX_EVENT_EOF'
+__EVENT_SCRIPT__
+CODEX_EVENT_EOF
+chmod +x "$EVENT_PATH"
 
 mkdir -p "$CONFIG_DIR"
 [ ! -f "$CONFIG_FILE" ] && touch "$CONFIG_FILE"
@@ -143,7 +155,8 @@ pub fn run_install() {
         .replace("__VERSION_TAG__", HOOK_VERSION_TAG)
         .replace("__BLOCK_BEGIN__", HOOKS_BLOCK_BEGIN)
         .replace("__BLOCK_END__", HOOKS_BLOCK_END)
-        .replace("__HOOK_SCRIPT__", &hook_script_content());
+        .replace("__HOOK_SCRIPT__", &hook_script_content())
+        .replace("__EVENT_SCRIPT__", &session_event_script_content());
 
     let mut ctx = BTreeMap::new();
     ctx.insert("type".into(), "install_codex_hooks".into());
