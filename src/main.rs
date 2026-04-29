@@ -1,3 +1,4 @@
+mod codex_installer;
 mod event_handler;
 mod installer;
 mod render;
@@ -139,7 +140,7 @@ impl ZellijPlugin for State {
                         self.config_loaded = true;
                         true
                     }
-                    Some("install_hooks") => {
+                    Some("install_hooks") | Some("install_codex_hooks") => {
                         self.hooks_installed = true;
                         false
                     }
@@ -168,9 +169,10 @@ impl ZellijPlugin for State {
                 if !self.config_loaded {
                     self.load_config();
                 }
-                // Auto-install hook script and register Claude Code hooks
+                // Auto-install hook scripts and register Claude Code + Codex hooks
                 if !self.hooks_installed {
                     installer::run_install();
+                    codex_installer::run_install();
                 }
                 false
             }
