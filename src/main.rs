@@ -265,14 +265,13 @@ impl State {
         let now = unix_now();
         let mut changed = false;
         for session in self.sessions.values_mut() {
-            match session.activity {
-                state::Activity::Done | state::Activity::AgentDone => {
-                    if now.saturating_sub(session.last_event_ts) >= DONE_TIMEOUT {
-                        session.activity = state::Activity::Idle;
-                        changed = true;
-                    }
-                }
-                _ => {}
+            if matches!(
+                session.activity,
+                state::Activity::Done | state::Activity::AgentDone
+            ) && now.saturating_sub(session.last_event_ts) >= DONE_TIMEOUT
+            {
+                session.activity = state::Activity::Idle;
+                changed = true;
             }
         }
         changed

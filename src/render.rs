@@ -196,7 +196,11 @@ pub fn render_status_bar(state: &mut State, _rows: usize, cols: usize) {
     };
     let prefix_text = format!(" Zellaude{session_part} ");
     let prefix_width = display_width(&prefix_text);
-    let mode_pill_width = if show_mode { 1 + mode_text.len() + 1 } else { 0 };
+    let mode_pill_width = if show_mode {
+        1 + mode_text.len() + 1
+    } else {
+        0
+    };
     let total_prefix_width = prefix_width + mode_pill_width;
 
     // Render prefix segment (truncate if wider than cols)
@@ -619,10 +623,19 @@ fn render_settings_menu(state: &mut State, buf: &mut String, col: &mut usize) {
         } else {
             ("○", fg(100, 100, 100), fg(100, 100, 100))
         };
-        let label = if enabled { "Mode indicator: on" } else { "Mode indicator: off" };
+        let label = if enabled {
+            "Mode indicator: on"
+        } else {
+            "Mode indicator: off"
+        };
         render_tristate(
-            buf, col, &mut state.menu_click_regions,
-            SettingKey::ModeIndicator, symbol, label, &sym_color, &label_color,
+            buf,
+            col,
+            &mut state.menu_click_regions,
+            SettingKey::ModeIndicator,
+            symbol,
+            label,
+            (&sym_color, &label_color),
         );
     }
 
