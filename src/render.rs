@@ -284,7 +284,10 @@ fn render_tabs(
     }
 
     // Per-tab pane geometry — used to order session markers row-major
-    // (top-to-bottom, left-to-right) within each tab.
+    // (top-to-bottom, left-to-right) within each tab. Plugin panes are
+    // excluded because PaneInfo.id is only unique within kind (terminal
+    // vs plugin), so a plugin pane can collide with a terminal pane on
+    // the same numeric id and stomp the terminal's coords with its own.
     let pane_positions: HashMap<usize, HashMap<u32, (usize, usize)>> = state
         .pane_manifest
         .as_ref()
@@ -292,8 +295,11 @@ fn render_tabs(
             m.panes
                 .iter()
                 .map(|(&tab_idx, panes)| {
-                    let positions: HashMap<u32, (usize, usize)> =
-                        panes.iter().map(|p| (p.id, (p.pane_y, p.pane_x))).collect();
+                    let positions: HashMap<u32, (usize, usize)> = panes
+                        .iter()
+                        .filter(|p| !p.is_plugin)
+                        .map(|p| (p.id, (p.pane_y, p.pane_x)))
+                        .collect();
                     (tab_idx, positions)
                 })
                 .collect()
