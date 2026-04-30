@@ -15,20 +15,39 @@ fn hook_script_content() -> String {
     }
 }
 
+fn notify_script_content() -> String {
+    let original = include_str!("../scripts/zellaude-notify.sh");
+    if let Some(pos) = original.find('\n') {
+        let (shebang, rest) = original.split_at(pos);
+        format!("{shebang}\n{HOOK_VERSION_TAG}{rest}")
+    } else {
+        original.to_string()
+    }
+}
+
 const INSTALL_TEMPLATE: &str = r##"set -e
 HOOK_PATH="$HOME/.config/zellij/plugins/zellaude-hook.sh"
+NOTIFY_PATH="$HOME/.config/zellij/plugins/zellaude-notify.sh"
 SETTINGS="$HOME/.claude/settings.json"
 
 # Check if already current
-if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null; then
+if grep -qF '__VERSION_TAG__' "$HOOK_PATH" 2>/dev/null \
+   && grep -qF '__VERSION_TAG__' "$NOTIFY_PATH" 2>/dev/null; then
   if [ -f "$SETTINGS" ] && grep -qF "$HOOK_PATH" "$SETTINGS" 2>/dev/null; then
     echo "current"
     exit 0
   fi
 fi
 
-# Write hook script
 mkdir -p "$(dirname "$HOOK_PATH")"
+
+# Write notify helper (shared with codex-hook.sh)
+cat > "$NOTIFY_PATH" << 'ZELLAUDE_NOTIFY_EOF'
+__NOTIFY_SCRIPT__
+ZELLAUDE_NOTIFY_EOF
+chmod +x "$NOTIFY_PATH"
+
+# Write hook script
 cat > "$HOOK_PATH" << 'ZELLAUDE_HOOK_EOF'
 __HOOK_SCRIPT__
 ZELLAUDE_HOOK_EOF
@@ -81,7 +100,8 @@ echo "installed"
 pub fn run_install() {
     let cmd = INSTALL_TEMPLATE
         .replace("__VERSION_TAG__", HOOK_VERSION_TAG)
-        .replace("__HOOK_SCRIPT__", &hook_script_content());
+        .replace("__HOOK_SCRIPT__", &hook_script_content())
+        .replace("__NOTIFY_SCRIPT__", &notify_script_content());
 
     let mut ctx = BTreeMap::new();
     ctx.insert("type".into(), "install_hooks".into());
