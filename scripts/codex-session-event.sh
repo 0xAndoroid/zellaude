@@ -6,10 +6,27 @@
 # helper before and after invoking the binary:
 #
 #   cdx() {
-#     "$HOME/.config/zellij/plugins/codex-session-event.sh" SessionStart
-#     caffeinate -i command codex --dangerously-bypass-approvals-and-sandbox "$@"
-#     local rc=$?
-#     "$HOME/.config/zellij/plugins/codex-session-event.sh" SessionEnd
+#     emulate -L zsh
+#     setopt localtraps
+#
+#     local helper="$HOME/.config/zellij/plugins/codex-session-event.sh"
+#     local rc=0
+#     local session_ended=0
+#     "$helper" SessionStart >/dev/null 2>&1 &!
+#     trap 'trap "" INT TERM HUP; if (( ! session_ended )); then session_ended=1; "$helper" SessionEnd >/dev/null 2>&1 &!; fi; return 130' INT
+#     trap 'trap "" INT TERM HUP; if (( ! session_ended )); then session_ended=1; "$helper" SessionEnd >/dev/null 2>&1 &!; fi; return 143' TERM HUP
+#
+#     {
+#       caffeinate -i command codex --dangerously-bypass-approvals-and-sandbox "$@"
+#     } always {
+#       rc=$?
+#       trap '' INT TERM HUP
+#       if (( ! session_ended )); then
+#         session_ended=1
+#         "$helper" SessionEnd >/dev/null 2>&1 &!
+#       fi
+#     }
+#
 #     return $rc
 #   }
 #

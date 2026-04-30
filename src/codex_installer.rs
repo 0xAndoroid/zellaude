@@ -16,7 +16,7 @@ const HOOKS_BLOCK_END: &str = "# END ZELLAUDE HOOKS";
 
 const INSTALL_TEMPLATE: &str = r##"set -e
 HOOK_PATH="$HOME/.config/zellij/plugins/codex-hook.sh"
-HOOK_CMD="$HOME/.config/zellij/plugins/codex-hook.sh"
+HOOK_CMD='${HOME}/.config/zellij/plugins/codex-hook.sh'
 EVENT_PATH="$HOME/.config/zellij/plugins/codex-session-event.sh"
 CONFIG_DIR="$HOME/.codex"
 CONFIG_FILE="$CONFIG_DIR/config.toml"
